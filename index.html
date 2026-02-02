@@ -21,6 +21,10 @@
     .result{margin-top:16px; padding:14px; border-radius:12px; background:#f4f6ff}
     .result div{display:flex; justify-content:space-between}
     .big{font-weight:800; font-size:20px}
+    .btns{display:flex; gap:10px; margin-top:12px}
+    button{padding:10px 12px; border-radius:10px; border:0; cursor:pointer}
+    .primary{background:#111; color:#fff}
+    .ghost{background:#fff; border:1px solid #ddd}
     .footer{margin-top:14px; font-size:12px; color:#666}
   </style>
 </head>
@@ -48,6 +52,11 @@
   <div><span>الضريبة</span><strong id="vat1">—</strong> دينار</div>
   <div class="big"><span>السعر النهائي</span><strong id="final1">—</strong> دينار</div>
 </div>
+
+<div class="btns">
+  <button class="primary" onclick="copy1()">نسخ</button>
+  <button class="ghost" onclick="reset1()">مسح</button>
+</div>
 </div>
 
 <!-- TAB 2 -->
@@ -65,6 +74,11 @@
     <span>المصنعية لكل غرام</span>
     <strong id="manu2">—</strong> دينار
   </div>
+</div>
+
+<div class="btns">
+  <button class="primary" onclick="copy2()">نسخ</button>
+  <button class="ghost" onclick="reset2()">مسح</button>
 </div>
 </div>
 
@@ -109,6 +123,21 @@ function calc2(){
 
 [g1,m1,p1].forEach(i=>i.addEventListener("input",calc1));
 [final2,g2,p2].forEach(i=>i.addEventListener("input",calc2));
+
+function reset1(){g1.value="";m1.value="";p1.value="";noVat1.textContent=vat1.textContent=final1.textContent="—";}
+function reset2(){final2.value="";g2.value="";p2.value="";noVat2.textContent=goldNoManu2.textContent=manu2.textContent="—";}
+
+function copy1(){
+  let txt=`الوزن: ${g1.value}\nالمصنعية/غرام: ${m1.value}\nسعر الذهب: ${p1.value}\nبدون ضريبة: ${noVat1.textContent} دينار\nالضريبة: ${vat1.textContent} دينار\nالسعر النهائي: ${final1.textContent} دينار`;
+  navigator.clipboard.writeText(txt);
+  alert("تم النسخ");
+}
+
+function copy2(){
+  let txt=`السعر النهائي: ${final2.value}\nالوزن: ${g2.value}\nسعر الذهب: ${p2.value}\nبدون ضريبة: ${noVat2.textContent}\nسعر الذهب بدون مصنعية: ${goldNoManu2.textContent}\nالمصنعية لكل غرام: ${manu2.textContent} دينار`;
+  navigator.clipboard.writeText(txt);
+  alert("تم النسخ");
+}
 </script>
 </body>
 </html>
