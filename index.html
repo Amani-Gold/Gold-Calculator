@@ -33,13 +33,15 @@
     --text: #F0EAD6; --text-muted: rgba(240,234,214,0.55);
     --on-gold: #0A0A0A;
   }
+  /* Light mode: darker text and gold for strong contrast on the cream background */
   [data-theme="light"] {
-    --gold: #A8842C; --gold-light: #8B6914; --gold-pale: #5C4510;
+    --gold: #7A5A10; --gold-light: #5E4408; --gold-pale: #3D2C05;
     --bg: #FAF7F0; --bg2: #F3EDE0; --surface: #FFFFFF; --field: #FFFDF8;
-    --border: rgba(168,132,44,0.22); --border-strong: rgba(168,132,44,0.55);
-    --text: #1C1913; --text-muted: rgba(28,25,19,0.6);
+    --border: rgba(122,90,16,0.28); --border-strong: rgba(122,90,16,0.6);
+    --text: #0E0C08; --text-muted: rgba(14,12,8,0.78);
     --on-gold: #FFFFFF;
   }
+  [data-theme="light"] body { font-weight: 400; }
   :root { --serif: 'Cormorant Garamond', Georgia, serif; --sans: 'Jost', system-ui, sans-serif; }
   [dir="rtl"] { --serif: 'Amiri', serif; --sans: 'Tajawal', system-ui, sans-serif; }
   [dir="rtl"] * { letter-spacing: 0 !important; }
