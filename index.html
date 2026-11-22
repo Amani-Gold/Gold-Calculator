@@ -66,6 +66,19 @@
   h1 { text-align: center; font-family: var(--serif); font-weight: 300; font-size: clamp(30px, 6vw, 46px); margin-bottom: 8px; }
   .sub { text-align: center; font-size: 13px; color: var(--text-muted); margin-bottom: 32px; line-height: 1.7; }
 
+  .rates { margin-bottom: 22px; }
+  .rates-title { text-align: center; font-family: var(--serif); font-size: 22px; color: var(--gold-light); }
+  .rates-hint { text-align: center; font-size: 12px; color: var(--text-muted); margin: 4px 0 12px; line-height: 1.6; }
+  .rates-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); }
+  .rate { background: var(--surface); border: none; color: var(--text); font: inherit; padding: 12px 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; transition: background 0.2s, color 0.2s; }
+  .rate:hover { background: var(--bg2); }
+  .rate .k { font-family: var(--serif); font-size: 20px; color: var(--gold-light); line-height: 1.1; }
+  .rate .v { font-size: 16px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .rate .u { font-size: 10px; color: var(--text-muted); }
+  .rate.selected { background: var(--gold); color: var(--on-gold); }
+  .rate.selected .k, .rate.selected .u { color: var(--on-gold); }
+  .rate:disabled { cursor: default; opacity: 0.6; }
+  .rates-note { text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 8px; }
   .tabs { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--border); margin-bottom: 1px; }
   .tab { background: var(--surface); border: none; color: var(--text-muted); font: inherit; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; padding: 16px 10px; cursor: pointer; transition: all 0.2s; }
   [dir="rtl"] .tab { font-size: 15px; }
@@ -134,6 +147,14 @@
   <span class="tag" data-t="tag">أدوات الذهب</span>
   <h1 data-t="title">حاسبة الذهب</h1>
   <p class="sub" data-t="sub">احسبي السعر النهائي للقطعة، أو استخرجي المصنعية من سعر نهائي. جميع الأسعار بالدينار البحريني وتشمل ضريبة 10٪.</p>
+
+  <!-- Live per-gram prices from the shop; tapping one fills the gold-price field. -->
+  <section class="rates" aria-live="polite">
+    <p class="rates-title" data-t="ratesTitle">سعر الذهب اليوم للغرام</p>
+    <p class="rates-hint" data-t="ratesHint">اضغطي على العيار لإضافة سعره للحاسبة — ويمكنك تعديله لأن الأسعار تختلف بين المحلات</p>
+    <div class="rates-grid" id="rates"></div>
+    <p class="rates-note" id="ratesNote"></p>
+  </section>
 
   <div class="tabs" role="tablist">
     <button class="tab active" data-tab="1" data-t="tab1" role="tab">حساب السعر النهائي</button>
@@ -215,6 +236,10 @@
       note: "الحسابات تقديرية — السعر النهائي يؤكده المحل.",
       by: "إعداد:", shop: "تسوّقي من متجر د. أماني للذهب ←",
       copyFinal: (v) => `السعر النهائي: ${v} د.ب`, copyManu: (v) => `المصنعية لكل غرام: ${v} د.ب`,
+      ratesTitle: "سعر الذهب اليوم للغرام",
+      ratesHint: "اضغطي على العيار لإضافة سعره للحاسبة — ويمكنك تعديله لأن الأسعار تختلف بين المحلات",
+      ratesUpdated: (t) => `مباشر من متجر د. أماني للذهب · آخر تحديث ${t} بتوقيت البحرين`,
+      ratesDown: "تعذّر تحميل السعر المباشر — أدخلي السعر يدوياً",
     },
     en: {
       brand: 'Dr. Amani Gold<span>Gold Calculator</span>', switchTo: "عربي",
@@ -228,6 +253,10 @@
       note: "Estimates only — the final price is confirmed by the shop.",
       by: "By", shop: "Shop at Dr. Amani Gold →",
       copyFinal: (v) => `Final price: ${v} BHD`, copyManu: (v) => `Making charge per gram: ${v} BHD`,
+      ratesTitle: "Today's gold price per gram",
+      ratesHint: "Tap a karat to use its price in the calculator — you can still edit it, as prices differ between shops",
+      ratesUpdated: (t) => `Live from the Dr. Amani Gold shop · updated ${t} Bahrain time`,
+      ratesDown: "Live price unavailable — enter the price manually",
     },
   };
 
@@ -308,7 +337,64 @@
   $("copy1").addEventListener("click", (e) => { if ($("final1").textContent !== "—") copy(e.currentTarget, T[lang].copyFinal($("final1").textContent)); });
   $("copy2").addEventListener("click", (e) => { if ($("manu2").textContent !== "—") copy(e.currentTarget, T[lang].copyManu($("manu2").textContent)); });
 
+  // ─── Live gold prices (from shop.amani-gold.app) ───
+  const KARATS = ["24K", "22K", "21K", "18K"];
+  const RATES_URL = "https://shop.amani-gold.app/api/gold-price";
+  let rates = null, ratesTime = null, ratesFailed = false;
+  const picked = { 1: null, 2: null }; // karat chosen for each tab's price field
+  const priceField = () => (document.querySelector(".tab.active").dataset.tab === "2" ? "p2" : "p1");
+  const activeTab = () => document.querySelector(".tab.active").dataset.tab;
+
+  function renderRates() {
+    const t = T[lang];
+    const sel = picked[activeTab()];
+    $("rates").innerHTML = KARATS.map((k) =>
+      `<button type="button" class="rate${sel === k ? " selected" : ""}" data-k="${k}" aria-pressed="${sel === k}"${rates ? "" : " disabled"}>
+        <span class="k">${k}</span><span class="v">${rates ? f(rates[k]) : "…"}</span><span class="u">${t.bd}</span>
+      </button>`).join("");
+    $("ratesNote").textContent = ratesFailed && !rates ? t.ratesDown : ratesTime ? t.ratesUpdated(ratesTime) : "";
+  }
+
+  async function loadRates() {
+    try {
+      const res = await fetch(RATES_URL, { cache: "no-store" });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      rates = data.rates;
+      ratesTime = new Date(data.updatedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bahrain" });
+      ratesFailed = false;
+    } catch (e) {
+      ratesFailed = true;
+    }
+    renderRates();
+  }
+
+  // Tapping a karat copies its price into the open tab's gold-price field (still editable).
+  $("rates").addEventListener("click", (e) => {
+    const btn = e.target.closest(".rate");
+    if (!btn || !rates) return;
+    const k = btn.dataset.k;
+    const field = $(priceField());
+    field.value = rates[k].toFixed(2);
+    picked[activeTab()] = k;
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    renderRates();
+  });
+  // Typing a different price un-highlights the karat, so it's clear a custom price is used.
+  ["p1", "p2"].forEach((id) => $(id).addEventListener("input", () => {
+    const tab = id === "p2" ? "2" : "1";
+    const k = picked[tab];
+    if (k && rates && $(id).value !== rates[k].toFixed(2)) { picked[tab] = null; renderRates(); }
+  }));
+  document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", renderRates));
+  $("reset1").addEventListener("click", () => { picked[1] = null; renderRates(); });
+  $("reset2").addEventListener("click", () => { picked[2] = null; renderRates(); });
+  $("langBtn").addEventListener("click", renderRates);
+
   applyLang();
+  renderRates();
+  loadRates();
+  setInterval(loadRates, 60000);
 </script>
 
 </body>
