@@ -79,6 +79,12 @@
   .rate.selected .k, .rate.selected .u { color: var(--on-gold); }
   .rate:disabled { cursor: default; opacity: 0.6; }
   .rates-note { text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 8px; }
+  .vat-mode { display: flex; width: fit-content; margin: 0 auto 18px; border: 1px solid var(--border); }
+  .vat-mode button { background: var(--surface); border: none; color: var(--text-muted); font: inherit; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; padding: 10px 18px; cursor: pointer; transition: all 0.2s; }
+  [dir="rtl"] .vat-mode button { font-size: 14px; letter-spacing: 0; }
+  .vat-mode button + button { border-inline-start: 1px solid var(--border); }
+  .vat-mode button.active { background: var(--gold); color: var(--bg); }
+  .line.hidden { display: none; }
   .tabs { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--border); margin-bottom: 1px; }
   .tab { background: var(--surface); border: none; color: var(--text-muted); font: inherit; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; padding: 16px 10px; cursor: pointer; transition: all 0.2s; }
   [dir="rtl"] .tab { font-size: 15px; }
@@ -156,6 +162,12 @@
     <p class="rates-note" id="ratesNote"></p>
   </section>
 
+  <!-- With VAT: final prices include 10% VAT. Without VAT: no VAT anywhere. -->
+  <div class="vat-mode" role="group" aria-label="VAT">
+    <button type="button" id="vatOn" data-t="vatOn">شامل الضريبة</button>
+    <button type="button" id="vatOff" data-t="vatOff">بدون ضريبة</button>
+  </div>
+
   <div class="tabs" role="tablist">
     <button class="tab active" data-tab="1" data-t="tab1" role="tab">حساب السعر النهائي</button>
     <button class="tab" data-tab="2" data-t="tab2" role="tab">استخراج المصنعية</button>
@@ -170,8 +182,8 @@
         <label class="field"><span data-t="goldPrice">سعر الذهب اليوم (للغرام)</span><input id="p1" type="number" inputmode="decimal" step="any" min="0" placeholder="0.00"></label>
       </div>
       <div class="result">
-        <div class="line"><span data-t="noVat">بدون ضريبة</span><strong><b id="noVat1">—</b><span class="unit" data-t="bd">د.ب</span></strong></div>
-        <div class="line"><span data-t="vat">الضريبة (10٪)</span><strong><b id="vat1">—</b><span class="unit" data-t="bd">د.ب</span></strong></div>
+        <div class="line vat-only"><span data-t="noVat">بدون ضريبة</span><strong><b id="noVat1">—</b><span class="unit" data-t="bd">د.ب</span></strong></div>
+        <div class="line vat-only"><span data-t="vat">الضريبة (10٪)</span><strong><b id="vat1">—</b><span class="unit" data-t="bd">د.ب</span></strong></div>
         <div class="line big"><span data-t="final">السعر النهائي</span><strong><b id="final1">—</b><span class="unit" data-t="bd">د.ب</span></strong></div>
       </div>
       <div class="btns">
@@ -188,7 +200,7 @@
         <label class="field"><span data-t="goldPrice">سعر الذهب اليوم (للغرام)</span><input id="p2" type="number" inputmode="decimal" step="any" min="0" placeholder="0.00"></label>
       </div>
       <div class="result">
-        <div class="line"><span data-t="noVat">بدون ضريبة</span><strong><b id="noVat2">—</b><span class="unit" data-t="bd">د.ب</span></strong></div>
+        <div class="line vat-only"><span data-t="noVat">بدون ضريبة</span><strong><b id="noVat2">—</b><span class="unit" data-t="bd">د.ب</span></strong></div>
         <div class="line"><span data-t="goldOnly">سعر الذهب بدون مصنعية</span><strong><b id="goldNoManu2">—</b><span class="unit" data-t="bd">د.ب</span></strong></div>
         <div class="line big"><span data-t="manuResult">المصنعية لكل غرام</span><strong><b id="manu2">—</b><span class="unit" data-t="bd">د.ب</span></strong></div>
       </div>
@@ -221,13 +233,18 @@
 </footer>
 
 <script>
-  const VAT = 0.10;
+  const VAT_RATE = 0.10;
+  // "With VAT" (default, as before) or "Without VAT", remembered on this device.
+  let withVat = true;
+  try { withVat = localStorage.getItem("dramani-calc-vat") !== "off"; } catch (e) {}
+  const vat = () => (withVat ? VAT_RATE : 0);
 
   const T = {
     ar: {
       brand: 'د. أماني للذهب<span>حاسبة الذهب</span>', switchTo: "English",
       tag: "أدوات الذهب", title: "حاسبة الذهب",
-      sub: "احسبي السعر النهائي للقطعة، أو استخرجي المصنعية من سعر نهائي. جميع الأسعار بالدينار البحريني وتشمل ضريبة 10٪.",
+      sub: "احسبي السعر النهائي للقطعة، أو استخرجي المصنعية من سعر نهائي. جميع الأسعار بالدينار البحريني — اختاري شامل الضريبة (10٪) أو بدون ضريبة.",
+      vatOn: "شامل الضريبة 10٪", vatOff: "بدون ضريبة",
       tab1: "حساب السعر النهائي", tab2: "استخراج المصنعية",
       weight: "الوزن (غرام)", manuPerGram: "المصنعية لكل غرام", goldPrice: "سعر الذهب اليوم (للغرام)", finalPrice: "السعر النهائي",
       noVat: "بدون ضريبة", vat: "الضريبة (10٪)", final: "السعر النهائي",
@@ -244,7 +261,8 @@
     en: {
       brand: 'Dr. Amani Gold<span>Gold Calculator</span>', switchTo: "عربي",
       tag: "Gold Tools", title: "Gold Calculator",
-      sub: "Work out a piece's final price, or extract the making charge from a final price. All prices in Bahraini Dinar, including 10% VAT.",
+      sub: "Work out a piece's final price, or extract the making charge from a final price. All prices in Bahraini Dinar — choose with 10% VAT or without VAT.",
+      vatOn: "With 10% VAT", vatOff: "Without VAT",
       tab1: "Final Price", tab2: "Making Charge",
       weight: "Weight (g)", manuPerGram: "Making charge / gram", goldPrice: "Gold price today / gram", finalPrice: "Final price",
       noVat: "Before VAT", vat: "VAT (10%)", final: "Final Price",
@@ -305,7 +323,7 @@
     const g = val("g1"), m = val("m1"), p = val("p1");
     if (!(g > 0) || isNaN(m) || !(p > 0)) return clear(["noVat1", "vat1", "final1"]);
     const noVat = g * m + g * p;
-    const final = noVat * (1 + VAT);
+    const final = noVat * (1 + vat());
     $("noVat1").textContent = f(noVat);
     $("vat1").textContent = f(final - noVat);
     $("final1").textContent = f(final);
@@ -314,13 +332,25 @@
   function calc2() {
     const total = val("final2"), g = val("g2"), p = val("p2");
     if (!(total > 0) || !(g > 0) || !(p > 0)) return clear(["noVat2", "goldNoManu2", "manu2"]);
-    const noVat = total / (1 + VAT);
+    const noVat = total / (1 + vat());
     const gold = p * g;
     const manu = (noVat - gold) / g;
     $("noVat2").textContent = f(noVat);
     $("goldNoManu2").textContent = f(gold);
     $("manu2").textContent = f(manu);
   }
+
+  function applyVat() {
+    $("vatOn").classList.toggle("active", withVat);
+    $("vatOff").classList.toggle("active", !withVat);
+    $("vatOn").setAttribute("aria-pressed", withVat);
+    $("vatOff").setAttribute("aria-pressed", !withVat);
+    document.querySelectorAll(".vat-only").forEach((el) => el.classList.toggle("hidden", !withVat));
+    calc1(); calc2();
+  }
+  const setVat = (on) => { withVat = on; try { localStorage.setItem("dramani-calc-vat", on ? "on" : "off"); } catch (e) {} applyVat(); };
+  $("vatOn").addEventListener("click", () => setVat(true));
+  $("vatOff").addEventListener("click", () => setVat(false));
 
   ["g1", "m1", "p1"].forEach((id) => $(id).addEventListener("input", calc1));
   ["final2", "g2", "p2"].forEach((id) => $(id).addEventListener("input", calc2));
@@ -392,6 +422,7 @@
   $("langBtn").addEventListener("click", renderRates);
 
   applyLang();
+  applyVat();
   renderRates();
   loadRates();
   setInterval(loadRates, 60000);
