@@ -57,6 +57,50 @@ async function goVia(p, path) {
 (async () => {
   const b = await chromium.launch();
 
+  console.log("0. Main link: currency changes in place, Bahrain VAT stays");
+  {
+    const ctx = await b.newContext(); const p = await ctx.newPage();
+    const fx = await (await fetch(base + "/api/gcc-rates")).json().then((d) => d.fx).catch(() => null);
+    await p.goto(base + "/"); await p.waitForTimeout(800);
+    await fill(p, "10", "2", "30");
+    eq(await p.textContent("#final1"), "352.00", "BHD final");
+    await p.click(".cur-btn");
+    check(await p.locator(".cur-list button.opt").count() === 6, "six currency options on main page");
+    await p.click('.cur-list button.opt[data-cur="SAR"]'); await p.waitForTimeout(800);
+    eq(pathOf(p), "/", "URL stays on the main link");
+    check(new URL(p.url()).searchParams.get("cur") === "SAR", "choice kept in link (?cur=SAR)");
+    eq((await p.textContent(".cur-btn")).trim().slice(-3), "SAR", "button shows SAR");
+    const k = fx.SAR / fx.BHD;
+    eq(await p.inputValue("#p1"), String(Number((30 * k).toFixed(2))), "typed gold price converted to SAR");
+    eq(await p.inputValue("#g1"), "10", "weight unchanged");
+    const exp = ((10 * Number((30 * k).toFixed(2)) + 10 * Number((2 * k).toFixed(2))) * 1.1).toFixed(2);
+    eq(await p.textContent("#final1"), Number(exp).toLocaleString("en-US", { minimumFractionDigits: 2 }), "final in SAR with Bahrain 10% VAT");
+    check((await p.textContent("#vat1")) !== "—" && (await p.textContent(".vat-mode")).includes("10"), "VAT is still Bahrain's 10%");
+    check((await p.textContent('.result .unit')).includes("ر.س"), "result unit is ر.س");
+    await p.waitForFunction(() => !document.querySelector(".rate[disabled]"), null, { timeout: 15000 });
+    check((await p.textContent(".rate .u")).includes("ر.س"), "karat prices in SAR");
+    check(/1 BHD/.test(await p.textContent("#ratesNote")), "conversion note shown");
+    await p.click(".cur-btn"); await p.click('.cur-list button.opt[data-cur="KWD"]'); await p.waitForTimeout(500);
+    check(/^\d+\.\d{3}$/.test((await p.textContent("#final1")).replace(/,/g, "")), "KWD shows 3 decimals");
+    await p.reload(); await p.waitForTimeout(1200);
+    eq((await p.textContent(".cur-btn")).trim().slice(-3), "KWD", "refresh keeps ?cur=KWD");
+    await p.click(".cur-btn"); await p.click('.cur-list button.opt[data-cur="BHD"]'); await p.waitForTimeout(500);
+    eq(p.url().includes("cur="), false, "back to BHD removes ?cur");
+    await fill(p, "10", "2", "30");
+    eq(await p.textContent("#final1"), "352.00", "BHD again gives the original result");
+    check((await p.textContent('[data-t="sub"]')).includes("بالدينار البحريني") || (await p.textContent('[data-t="sub"]')).includes("Bahraini Dinar"), "original subtitle restored");
+    await p.click(".cur-btn");
+    check(await p.locator('.cur-foot a[href="/ksa"]').count() === 1, "list links to /ksa for Saudi VAT and settings");
+    await ctx.close();
+    const ctx2 = await b.newContext(); const p2 = await ctx2.newPage();
+    await p2.route("**/api/gcc-rates", (r) => r.fulfill({ status: 502, body: "{}" }));
+    await p2.goto(base + "/"); await p2.waitForTimeout(500);
+    await p2.click(".cur-btn"); await p2.click('.cur-list button.opt[data-cur="AED"]'); await p2.waitForTimeout(800);
+    eq((await p2.textContent(".cur-btn")).trim().slice(-3), "BHD", "rates down → stays BHD");
+    await fill(p2, "10", "2", "30"); eq(await p2.textContent("#final1"), "352.00", "Bahrain still works when rates are down");
+    await ctx2.close();
+  }
+
   console.log("1. Country switching Bahrain → KSA → UAE → KW → QA → OM → Bahrain");
   {
     const ctx = await b.newContext(); const p = await ctx.newPage();

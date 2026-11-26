@@ -142,7 +142,7 @@
 <header>
   <a class="brand" href="https://shop.amani-gold.app" data-t="brand">د. أماني للذهب<span>حاسبة الذهب</span></a>
   <div class="head-actions">
-    <div data-currency-menu="bh"></div>
+    <div data-currency-menu="bh" data-currency-mode="convert"></div>
     <button class="icon-btn" id="langBtn" type="button">English</button>
     <button class="icon-btn theme-btn" id="themeBtn" type="button" aria-label="Light / dark mode">
       <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
@@ -235,6 +235,7 @@
 </footer>
 
 <script src="/assets/num.js"></script>
+<script src="/assets/gcc-config.js"></script>
 <script>
   const VAT_RATE = 0.10;
   // "With VAT" (default, as before) or "Without VAT", remembered on this device.
@@ -255,7 +256,10 @@
       copy: "نسخ", copied: "تم النسخ ✓", reset: "مسح",
       note: "الحسابات تقديرية — السعر النهائي يؤكده المحل.",
       by: "إعداد:", shop: "تسوّقي من متجر د. أماني للذهب ←",
-      copyFinal: (v) => `السعر النهائي: ${v} د.ب`, copyManu: (v) => `المصنعية لكل غرام: ${v} د.ب`,
+      copyFinal: (v, u = "د.ب") => `السعر النهائي: ${v} ${u}`, copyManu: (v, u = "د.ب") => `المصنعية لكل غرام: ${v} ${u}`,
+      subCur: (name, code) => `احسبي السعر النهائي للقطعة، أو استخرجي المصنعية من سعر نهائي. الأسعار محوّلة إلى ${name} (${code}) مع ضريبة البحرين — اختاري شامل الضريبة (10٪) أو بدون ضريبة.`,
+      convNote: (code, x) => `محوّل من الدينار البحريني: \u20661 BHD = ${x} ${code}\u2069`,
+      convDown: "تعذّر تحميل سعر الصرف — الأسعار بالدينار البحريني",
       ratesTitle: "سعر الذهب اليوم للغرام",
       ratesHint: "اضغطي على العيار لإضافة سعره للحاسبة — ويمكنك تعديله لأن الأسعار تختلف بين المحلات",
       ratesUpdated: (t) => `مباشر من متجر د. أماني للذهب · آخر تحديث ${t} بتوقيت البحرين`,
@@ -273,7 +277,10 @@
       copy: "Copy", copied: "Copied ✓", reset: "Reset",
       note: "Estimates only — the final price is confirmed by the shop.",
       by: "By", shop: "Shop at Dr. Amani Gold →",
-      copyFinal: (v) => `Final price: ${v} BHD`, copyManu: (v) => `Making charge per gram: ${v} BHD`,
+      copyFinal: (v, u = "BHD") => `Final price: ${v} ${u}`, copyManu: (v, u = "BHD") => `Making charge per gram: ${v} ${u}`,
+      subCur: (name, code) => `Work out a piece's final price, or extract the making charge from a final price. Prices converted to ${name} (${code}) with Bahrain VAT — choose with 10% VAT or without VAT.`,
+      convNote: (code, x) => `Converted from Bahraini Dinar: 1 BHD = ${x} ${code}`,
+      convDown: "Exchange rate unavailable — prices shown in Bahraini Dinar",
       ratesTitle: "Today's gold price per gram",
       ratesHint: "Tap a karat to use its price in the calculator — you can still edit it, as prices differ between shops",
       ratesUpdated: (t) => `Live from the Dr. Amani Gold shop · updated ${t} Bahrain time`,
@@ -295,6 +302,7 @@
       if (typeof v === "string") el.innerHTML = v;
     });
     $("langBtn").textContent = t.switchTo;
+    applyCurrencyLabels();
   }
   $("langBtn").addEventListener("click", () => {
     lang = lang === "ar" ? "en" : "ar";
@@ -318,7 +326,20 @@
   }));
 
   // ─── Calculations (same formulas as before) ───
-  const f = (n) => Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // ─── Display currency (main page only): converts amounts, keeps Bahrain's VAT ───
+  // BHD is the original page (factor 1, 2 decimals). Another currency only changes what the
+  // amounts are shown in; country VAT and settings live on their own links (/ksa, /uae …).
+  let cur = { code: "BHD", factor: 1, d: 2 };
+  const curInfo = () => (window.AmaniGCC ? AmaniGCC.COUNTRIES.find((c) => c.currency === cur.code) : null);
+  const unit = () => (cur.code === "BHD" ? T[lang].bd : lang === "ar" ? curInfo().symbolAr : cur.code);
+  function applyCurrencyLabels() {
+    if (cur.code === "BHD") return; // original labels from T
+    document.querySelectorAll('[data-t="bd"]').forEach((el) => (el.textContent = unit()));
+    const c = curInfo();
+    document.querySelector('[data-t="sub"]').textContent = T[lang].subCur(lang === "ar" ? c.currencyAr : c.currencyEn, cur.code);
+  }
+
+  const f = (n) => Number(n).toLocaleString("en-US", { minimumFractionDigits: cur.d, maximumFractionDigits: cur.d });
   // Accepts Western, Arabic-Indic and Persian digits; invalid text is flagged and treated as empty.
   const val = (id) => AmaniNum.readInput($(id));
   const clear = (ids) => ids.forEach((id) => ($(id).textContent = "—"));
@@ -368,8 +389,8 @@
       setTimeout(() => (btn.textContent = T[lang].copy), 1500);
     }).catch(() => {});
   }
-  $("copy1").addEventListener("click", (e) => { if ($("final1").textContent !== "—") copy(e.currentTarget, T[lang].copyFinal($("final1").textContent)); });
-  $("copy2").addEventListener("click", (e) => { if ($("manu2").textContent !== "—") copy(e.currentTarget, T[lang].copyManu($("manu2").textContent)); });
+  $("copy1").addEventListener("click", (e) => { if ($("final1").textContent !== "—") copy(e.currentTarget, T[lang].copyFinal($("final1").textContent, cur.code === "BHD" ? undefined : cur.code)); });
+  $("copy2").addEventListener("click", (e) => { if ($("manu2").textContent !== "—") copy(e.currentTarget, T[lang].copyManu($("manu2").textContent, cur.code === "BHD" ? undefined : cur.code)); });
 
   // ─── Live gold prices (from shop.amani-gold.app) ───
   const KARATS = ["24K", "22K", "21K", "18K"];
@@ -378,15 +399,20 @@
   const picked = { 1: null, 2: null }; // karat chosen for each tab's price field
   const priceField = () => (document.querySelector(".tab.active").dataset.tab === "2" ? "p2" : "p1");
   const activeTab = () => document.querySelector(".tab.active").dataset.tab;
+  const rateText = (k) => (rates[k] * cur.factor).toFixed(cur.d); // karat price in the display currency
+  let convFailed = false;
 
   function renderRates() {
     const t = T[lang];
     const sel = picked[activeTab()];
     $("rates").innerHTML = KARATS.map((k) =>
       `<button type="button" class="rate${sel === k ? " selected" : ""}" data-k="${k}" aria-pressed="${sel === k}"${rates ? "" : " disabled"}>
-        <span class="k">${k}</span><span class="v">${rates ? f(rates[k]) : "…"}</span><span class="u">${t.bd}</span>
+        <span class="k">${k}</span><span class="v">${rates ? f(rates[k] * cur.factor) : "…"}</span><span class="u">${unit()}</span>
       </button>`).join("");
-    $("ratesNote").textContent = ratesFailed && !rates ? t.ratesDown : ratesTime ? t.ratesUpdated(ratesTime) : "";
+    let note = ratesFailed && !rates ? t.ratesDown : ratesTime ? t.ratesUpdated(ratesTime) : "";
+    if (cur.code !== "BHD") note += (note ? " · " : "") + t.convNote(cur.code, Number(cur.factor.toFixed(4)));
+    else if (convFailed) note += (note ? " · " : "") + t.convDown;
+    $("ratesNote").textContent = note;
   }
 
   async function loadRates() {
@@ -409,7 +435,7 @@
     if (!btn || !rates) return;
     const k = btn.dataset.k;
     const field = $(priceField());
-    field.value = rates[k].toFixed(2);
+    field.value = rateText(k);
     picked[activeTab()] = k;
     field.dispatchEvent(new Event("input", { bubbles: true }));
     renderRates();
@@ -418,21 +444,60 @@
   ["p1", "p2"].forEach((id) => $(id).addEventListener("input", () => {
     const tab = id === "p2" ? "2" : "1";
     const k = picked[tab];
-    if (k && rates && $(id).value !== rates[k].toFixed(2)) { picked[tab] = null; renderRates(); }
+    if (k && rates && $(id).value !== rateText(k)) { picked[tab] = null; renderRates(); }
   }));
   document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", renderRates));
   $("reset1").addEventListener("click", () => { picked[1] = null; renderRates(); });
   $("reset2").addEventListener("click", () => { picked[2] = null; renderRates(); });
   $("langBtn").addEventListener("click", renderRates);
 
+  // Switch the display currency: converts the karat prices and any amounts already typed
+  // (weights stay as they are), recalculates, and keeps the choice in the link (?cur=SAR).
+  let fx = null;
+  async function setCurrency(code) {
+    let factor = 1, d = 2;
+    if (code !== "BHD") {
+      try {
+        if (!fx) {
+          const res = await fetch("/api/gcc-rates", { cache: "no-store" });
+          if (!res.ok) throw new Error();
+          fx = (await res.json()).fx;
+        }
+        if (!(fx[code] > 0) || !(fx.BHD > 0)) throw new Error();
+        factor = fx[code] / fx.BHD;
+        d = AmaniGCC.COUNTRIES.find((c) => c.currency === code).decimals;
+      } catch (e) {
+        convFailed = true; code = "BHD";
+      }
+    }
+    if (code === "BHD") factor = 1;
+    const ratio = factor / cur.factor;
+    ["m1", "p1", "final2", "p2"].forEach((id) => {
+      const r = AmaniNum.parseAmount($(id).value);
+      if (r.valid && ratio !== 1) $(id).value = Number((r.value * ratio).toFixed(d)).toString();
+    });
+    cur = { code, factor, d };
+    if (code !== "BHD") convFailed = false;
+    const url = new URL(location.href);
+    if (code === "BHD") url.searchParams.delete("cur"); else url.searchParams.set("cur", code);
+    history.replaceState(null, "", url);
+    applyLang(); // restores original labels for BHD, currency labels otherwise
+    calc1(); calc2(); renderRates();
+    document.dispatchEvent(new CustomEvent("amani:currency-changed", { detail: { code } }));
+  }
+  document.addEventListener("amani:currency", (e) => setCurrency(e.detail.code));
+
   applyLang();
   applyVat();
   renderRates();
   loadRates();
+  {
+    const q = (new URLSearchParams(location.search).get("cur") || "").toUpperCase();
+    if (q && q !== "BHD" && window.AmaniGCC && AmaniGCC.COUNTRIES.some((c) => c.currency === q)) setCurrency(q);
+  }
   setInterval(loadRates, 60000);
 </script>
 
-<script src="/assets/gcc-config.js"></script>
 <script src="/assets/currency-menu.js"></script>
 </body>
 </html>
