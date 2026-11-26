@@ -1,0 +1,51 @@
+{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/bh",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/bahrain",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/sa",
+      "destination": "/ksa",
+      "permanent": true
+    },
+    {
+      "source": "/saudi",
+      "destination": "/ksa",
+      "permanent": true
+    },
+    {
+      "source": "/ae",
+      "destination": "/uae",
+      "permanent": true
+    },
+    {
+      "source": "/k8",
+      "destination": "/kw",
+      "permanent": true
+    },
+    {
+      "source": "/kuwait",
+      "destination": "/kw",
+      "permanent": true
+    },
+    {
+      "source": "/qa",
+      "destination": "/qatar",
+      "permanent": true
+    },
+    {
+      "source": "/om",
+      "destination": "/oman",
+      "permanent": true
+    }
+  ]
+}

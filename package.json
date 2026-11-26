@@ -1,0 +1,10 @@
+{
+  "name": "dr-amani-gold-calculator",
+  "private": true,
+  "scripts": {
+    "build:gcc": "node scripts/build-gcc.mjs",
+    "test": "node --test tests/calc.test.mjs",
+    "serve": "node scripts/serve.mjs 5300",
+    "test:e2e": "node tests/e2e.cjs http://localhost:5300"
+  }
+}
