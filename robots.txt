@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://cal.amani-gold.app/sitemap.xml
