@@ -43,8 +43,10 @@ for (const c of COUNTRIES.filter((c) => !c.original)) {
     .replaceAll("{{SYMBOL}}", esc(c.symbolAr))
     .replace("{{PREPAINT}}", prepaint)
     .replace("{{STYLE}}", style)
-    .replace("{{HEADER}}", header.replace('data-currency-menu="bh"', `data-currency-menu="${c.id}"`))
+    // Country pages keep the navigating currency menu (no in-place conversion).
+    .replace("{{HEADER}}", header.replace(/data-currency-menu="bh"( data-currency-mode="[a-z]+")?/, `data-currency-menu="${c.id}"`))
     .replace("{{FOOTER}}", footer);
+  if (/data-currency-mode/.test(page)) throw new Error(`${c.id}: currency menu must navigate, not convert`);
   if (/\{\{[A-Z_]+\}\}/.test(page)) throw new Error(`Unfilled placeholder in ${c.id}`);
   writeFileSync(join(root, `${c.path.slice(1)}.html`), page);
   console.log(`wrote ${c.path.slice(1)}.html`);
