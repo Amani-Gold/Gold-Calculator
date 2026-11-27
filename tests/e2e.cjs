@@ -50,7 +50,7 @@ async function checkCountry(p, path, label) {
 async function goVia(p, path) {
   await p.click(".cur-btn");
   check(await p.locator(".cur-list").isVisible(), "currency list opens on tap");
-  await Promise.all([p.waitForNavigation(), p.click(`.cur-list a[href="${path}"]`)]);
+  await Promise.all([p.waitForNavigation({ waitUntil: "domcontentloaded" }), p.click(`.cur-list a[href="${path}"]`)]);
   await p.waitForTimeout(400);
 }
 
